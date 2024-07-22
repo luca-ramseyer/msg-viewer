@@ -1,37 +1,101 @@
-import Link from "next/link";
+"use client"
+
+import { useState } from "react";
+import MsgReader from "@kenjiuno/msgreader"
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { toast } from "sonner"
+import { Card } from "@/components/ui/card";
+import sanitizeHtml from "sanitize-html";
+
+interface Message {
+  subject: string;
+  senderName: string;
+  senderEmail: string;
+  recipients: Recipient[];
+  body: string;
+  attachments: Attachment[];
+}
+
+interface Recipient {
+  name: string;
+  email: string;
+}
+
+interface Attachment {
+  dataId: number;
+  contentLength: number;
+  fileName: string;
+  fileNameShort: string;
+} 
 
 export default function HomePage() {
+  const [msgData, setMsgData] = useState<Message | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+
+  const getInitials = (name: string) => {
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts[nameParts.length - 1];
+    return (firstName!.charAt(0) + lastName!.charAt(0)).toUpperCase();
+  };
+
+  const handleSubmit = (e : React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target?.result;
+        if(arrayBuffer instanceof ArrayBuffer) {
+          const msgReader = new MsgReader(arrayBuffer);
+          const tempMsgData = msgReader.getFileData();
+          console.log(tempMsgData);
+
+          setMsgData({
+            subject: tempMsgData.subject,
+            senderName: tempMsgData.senderName,
+            senderEmail: tempMsgData.senderSmtpAddress,
+            recipients: tempMsgData.recipients,
+            body: tempMsgData.body,
+            attachments: tempMsgData.attachments,
+          } as Message)
+        }
+      }
+      reader.readAsArrayBuffer(file);
+    }
+  }
+
+  const handleFileUpload = (event : React.ChangeEvent<HTMLInputElement>) => {
+    setFile(event.target.files![0]!)
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
-          Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-        </h1>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/usage/first-steps"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">First Steps →</h3>
-            <div className="text-lg">
-              Just the basics - Everything you need to know to set up your
-              database and authentication.
-            </div>
-          </Link>
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/introduction"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">Documentation →</h3>
-            <div className="text-lg">
-              Learn more about Create T3 App, the libraries it uses, and how to
-              deploy it.
-            </div>
-          </Link>
-        </div>
-      </div>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground gap-12 py-36">
+      <Card className="max-w-full mx-32 flex flex-col items-center justify-center gap-4 pt-10">
+        <h1 className="text-4xl">.msg file reader</h1>
+        <form onSubmit={handleSubmit} className="w-96 flex flex-col items-center justify-center gap-4 p-6">
+          <Input className="border-border bg-card" type="file" accept=".msg" onChange={handleFileUpload} />
+          <Button className="w-full" type="submit">Submit</Button>
+        </form>
+      </Card>
+        {
+          msgData && (
+            <Card className="max-w-full mx-32 p-12 flex flex-col gap-4">
+              <h1 className="text-2xl">{msgData.subject}</h1>
+              <div className="flex flex-row gap-4">
+                <div className="flex flex-col items-center justify-center p-2 rounded-full bg-primary h-12 w-12 text-primary-foreground">
+                  <h2 className="text-xl">{getInitials(msgData.senderName)}</h2>
+                </div>
+                <div>
+                  <h2 className="text-xl">{msgData.senderName} {msgData.senderEmail}</h2>
+                  <p className="text-sm">To {msgData.recipients.map((recipient) => recipient.name).join(", ")}</p>
+                </div>
+              </div>
+              <div dangerouslySetInnerHTML={{ __html: msgData.body }} />
+            </Card>
+          )
+        }
     </main>
   );
 }
