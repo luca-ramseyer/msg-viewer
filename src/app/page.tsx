@@ -1,13 +1,10 @@
 "use client"
 
-import { useState } from "react";
-import MsgReader from "@kenjiuno/msgreader"
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
-import { toast } from "sonner"
 import { Card } from "@/components/ui/card";
-import sanitizeHtml from "sanitize-html";
+import { Input } from "@/components/ui/input";
+import MsgReader from "@kenjiuno/msgreader";
+import { useState } from "react";
 
 interface Message {
   subject: string;
