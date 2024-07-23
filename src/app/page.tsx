@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import MsgReader from "@kenjiuno/msgreader";
 import { useState } from "react";
@@ -54,7 +54,7 @@ export default function HomePage() {
             senderName: tempMsgData.senderName,
             senderEmail: tempMsgData.senderSmtpAddress,
             recipients: tempMsgData.recipients,
-            body: tempMsgData.body,
+            body: tempMsgData.body!.replace(/(\r\n|\n|\r){2,}/g, '\n').replace(/\r\n|\n|\r/g, '<br />'),
             attachments: tempMsgData.attachments,
           } as Message)
         }
@@ -69,12 +69,15 @@ export default function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground gap-12 py-36">
-      <Card className="max-w-full mx-32 flex flex-col items-center justify-center gap-4 pt-10">
+      <Card className="max-w-full mx-32 flex flex-col items-center justify-center gap-4 p-6 pt-10">
         <h1 className="text-4xl">.msg file reader</h1>
-        <form onSubmit={handleSubmit} className="w-96 flex flex-col items-center justify-center gap-4 p-6">
+        <form onSubmit={handleSubmit} className="w-96 flex flex-col items-center justify-center gap-4">
           <Input className="border-border bg-card" type="file" accept=".msg" onChange={handleFileUpload} />
           <Button className="w-full" type="submit">Submit</Button>
         </form>
+        <CardDescription>
+          This Website is fully local. No data is sent to any server.
+        </CardDescription>
       </Card>
         {
           msgData && (
@@ -89,7 +92,7 @@ export default function HomePage() {
                   <p className="text-sm">To {msgData.recipients.map((recipient) => recipient.name).join(", ")}</p>
                 </div>
               </div>
-              <div dangerouslySetInnerHTML={{ __html: msgData.body }} />
+              <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: msgData.body }} />
             </Card>
           )
         }
