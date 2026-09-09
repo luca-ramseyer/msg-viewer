@@ -1,25 +1,49 @@
+import { Cormorant_Garamond, Montserrat } from "next/font/google";
+import { type Metadata, type Viewport } from "next";
+
 import Footer from "@/components/footer";
+import Header from "@/components/header";
 import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 
-import { GeistSans } from "geist/font/sans";
-import { type Metadata } from "next";
+/**
+ * Brand typefaces. Self-hosted by next/font, so the page pulls nothing from a
+ * font CDN at runtime and the "stays local" claim holds for the page too.
+ */
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-serif",
+  display: "swap",
+});
+
+const sans = Montserrat({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: ".msg file reader",
-  description: "Site to upload and preview .msg files locally",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  title: "msg reader · Luca Ramseyer",
+  description:
+    "Open an Outlook .msg file in your browser. The file is parsed in the tab and never uploaded.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F4EFE4",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${GeistSans.variable}`}>
-      <body className="bg-background text-foreground">
+    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+      <body className="flex min-h-screen flex-col bg-paper font-sans text-graphite">
+        <Header />
         {children}
-        <Toaster />
         <Footer />
+        <Toaster />
       </body>
     </html>
   );
