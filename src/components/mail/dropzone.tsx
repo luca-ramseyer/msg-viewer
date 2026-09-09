@@ -47,11 +47,11 @@ const Dropzone = ({ onFile, disabled = false }: DropzoneProps) => {
     >
       <p className="eyebrow">Mail file</p>
       <p className="mt-s2 font-serif text-h2 text-ink">
-        Drop a <span className="text-red">.msg</span> or{" "}
-        <span className="text-red">.eml</span> file here
+        Drop a mail file here
       </p>
-      <p className="mt-s2 max-w-[46ch] text-small text-stone">
-        The file is read in this browser tab and never leaves your computer.
+      <p className="mt-s2 max-w-[52ch] text-small text-stone">
+        .msg, .eml, .emlx, .mbox, .mht or winmail.dat. The file is read in this
+        browser tab and never leaves your computer.
       </p>
 
       <Button
@@ -70,7 +70,7 @@ const Dropzone = ({ onFile, disabled = false }: DropzoneProps) => {
       <input
         ref={inputRef}
         type="file"
-        accept=".msg,.eml,.emlx,application/vnd.ms-outlook,message/rfc822"
+        accept=".msg,.eml,.emlx,.mbox,.mbx,.mht,.mhtml,.dat,application/vnd.ms-outlook,message/rfc822"
         className="sr-only"
         tabIndex={-1}
         disabled={disabled}

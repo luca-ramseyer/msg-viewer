@@ -1,13 +1,19 @@
 import sanitizeHtml from "sanitize-html";
 
 /** The mail container formats this app can read. */
-export type MailFormat = "msg" | "eml" | "emlx";
+export type MailFormat = "msg" | "eml" | "emlx" | "mbox" | "mht" | "tnef";
 
 export const FORMAT_LABELS: Record<MailFormat, string> = {
   msg: "Outlook .msg",
   eml: "MIME .eml",
   emlx: "Apple Mail .emlx",
+  mbox: "mbox archive",
+  mht: "MHT web archive",
+  tnef: "Outlook TNEF (winmail.dat)",
 };
+
+/** How deep a message inside a message inside a message may go. */
+export const MAX_NESTING_DEPTH = 5;
 
 export interface Party {
   name: string;
@@ -23,6 +29,8 @@ export interface ParsedAttachment {
   /** The format's own flag for files a mail client does not list. */
   hidden: boolean;
   bytes: Uint8Array;
+  /** The message this attachment carries, when it carries one. */
+  message: ParsedMessage | null;
 }
 
 export interface ParsedMessage {
@@ -40,6 +48,84 @@ export interface ParsedMessage {
   attachments: ParsedAttachment[];
   /** Raw transport headers, when the file carries them. */
   headers: string;
+}
+
+/** Enough of a message to list it, without decoding its body or attachments. */
+export interface MailSummary {
+  subject: string;
+  sender: Party;
+  sentAt: Date | null;
+}
+
+/**
+ * A file holds one message, or thousands in the case of an archive. Listing is
+ * cheap and opening is not, so an archive is summarised up front and each
+ * message is parsed only when it is asked for.
+ */
+export interface ParsedMailFile {
+  format: MailFormat;
+  entries: MailSummary[];
+  open: (index: number) => Promise<ParsedMessage>;
+}
+
+/** Wrap an already-parsed message as a one-entry file. */
+export function singleMessageFile(
+  format: MailFormat,
+  message: ParsedMessage,
+): ParsedMailFile {
+  return {
+    format,
+    entries: [summarise(message)],
+    open: () => Promise.resolve(message),
+  };
+}
+
+export function summarise(message: ParsedMessage): MailSummary {
+  return {
+    subject: message.subject,
+    sender: message.sender,
+    sentAt: message.sentAt,
+  };
+}
+
+/**
+ * Parses a message found inside another message. The dispatcher supplies it,
+ * so a parser can open nested mail of any format without importing its
+ * siblings and creating a cycle.
+ */
+export type NestedParser = (
+  bytes: Uint8Array,
+  depth: number,
+) => Promise<ParsedMessage | null>;
+
+export interface ParseContext {
+  /** How many messages deep this one sits. Top level is 0. */
+  depth: number;
+  parseNested?: NestedParser;
+}
+
+const MESSAGE_MIME_TYPES = new Set([
+  "message/rfc822",
+  "application/vnd.ms-outlook",
+  "application/ms-tnef",
+  "application/vnd.ms-tnef",
+]);
+
+const MESSAGE_EXTENSIONS = /\.(msg|eml|emlx|mht|mhtml)$/i;
+
+/**
+ * Whether an attachment is worth trying to open as a message. Sniffing every
+ * attachment would turn any text file with a colon in it into a mail.
+ */
+export function looksLikeMessageAttachment(
+  fileName: string,
+  mimeType: string,
+): boolean {
+  return (
+    MESSAGE_MIME_TYPES.has(mimeType.toLowerCase()) ||
+    MESSAGE_EXTENSIONS.test(fileName) ||
+    fileName.toLowerCase() === "winmail.dat"
+  );
 }
 
 export class MailParseError extends Error {}

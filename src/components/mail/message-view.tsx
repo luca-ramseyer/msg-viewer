@@ -1,11 +1,10 @@
 "use client";
 
-import { ChevronDown, Download, ImageOff, Paperclip } from "lucide-react";
+import { ChevronDown, CornerDownRight, Download, ImageOff, Paperclip } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  FORMAT_LABELS,
   displayName,
   formatBytes,
   formatDate,
@@ -18,6 +17,8 @@ import {
 
 interface MessageViewProps {
   message: ParsedMessage;
+  /** Called when the reader opens a message carried inside this one. */
+  onOpenNested?: (message: ParsedMessage) => void;
 }
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -49,7 +50,13 @@ const PartyRow = ({ label, parties }: { label: string; parties: Party[] }) => {
   );
 };
 
-const AttachmentRow = ({ attachment }: { attachment: ParsedAttachment }) => {
+const AttachmentRow = ({
+  attachment,
+  onOpenNested,
+}: {
+  attachment: ParsedAttachment;
+  onOpenNested?: (message: ParsedMessage) => void;
+}) => {
   const download = () => {
     const blob = new Blob([attachment.bytes], { type: attachment.mimeType });
     const url = URL.createObjectURL(blob);
@@ -71,15 +78,27 @@ const AttachmentRow = ({ attachment }: { attachment: ParsedAttachment }) => {
           {formatBytes(attachment.size)}
         </p>
       </div>
-      <Button variant="quiet" size="sm" onClick={download}>
-        <Download aria-hidden className="h-[13px] w-[13px]" />
-        Save
-      </Button>
+      <div className="flex shrink-0 items-center gap-s1">
+        {attachment.message && onOpenNested && (
+          <Button
+            variant="quiet"
+            size="sm"
+            onClick={() => onOpenNested(attachment.message!)}
+          >
+            <CornerDownRight aria-hidden className="h-[13px] w-[13px] text-red" />
+            Open
+          </Button>
+        )}
+        <Button variant="quiet" size="sm" onClick={download}>
+          <Download aria-hidden className="h-[13px] w-[13px]" />
+          Save
+        </Button>
+      </div>
     </li>
   );
 };
 
-const MessageView = ({ message }: MessageViewProps) => {
+const MessageView = ({ message, onOpenNested }: MessageViewProps) => {
   const [allowRemoteImages, setAllowRemoteImages] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
 
@@ -144,7 +163,6 @@ const MessageView = ({ message }: MessageViewProps) => {
           <PartyRow label="Bcc" parties={message.bcc} />
           <PartyRow label="Reply to" parties={message.replyTo} />
           {message.sentAt && <Row label="Sent">{formatDate(message.sentAt)}</Row>}
-          <Row label="Format">{FORMAT_LABELS[message.format]}</Row>
         </dl>
       </header>
 
@@ -176,7 +194,11 @@ const MessageView = ({ message }: MessageViewProps) => {
           </h2>
           <ul className="mt-s2">
             {visibleAttachments.map((attachment) => (
-              <AttachmentRow key={attachment.id} attachment={attachment} />
+              <AttachmentRow
+                key={attachment.id}
+                attachment={attachment}
+                onOpenNested={onOpenNested}
+              />
             ))}
           </ul>
         </section>

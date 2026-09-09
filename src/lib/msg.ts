@@ -3,9 +3,11 @@ import type { FieldsData } from "@kenjiuno/msgreader/lib/MsgReader";
 
 import {
   MailParseError,
+  looksLikeMessageAttachment,
   mimeTypeFor,
   normaliseContentId,
   toDate,
+  type ParseContext,
   type ParsedAttachment,
   type ParsedMessage,
   type Party,
@@ -20,7 +22,10 @@ function toParty(field: FieldsData): Party {
 }
 
 /** Parse an Outlook .msg file (a compound file with MAPI properties). */
-export function parseMsg(buffer: ArrayBuffer): ParsedMessage {
+export async function parseMsg(
+  buffer: ArrayBuffer,
+  context: ParseContext = { depth: 0 },
+): Promise<ParsedMessage> {
   let fields: FieldsData;
   let reader: MsgReader;
 
@@ -55,33 +60,45 @@ export function parseMsg(buffer: ArrayBuffer): ParsedMessage {
   const recipients = fields.recipients ?? [];
   const attachments: ParsedAttachment[] = [];
 
-  (fields.attachments ?? []).forEach((attachment, index) => {
-    // Embedded messages are a nested CFBF storage, not a byte stream.
-    if (attachment.innerMsgContent) return;
-
+  for (const [index, attachment] of (fields.attachments ?? []).entries()) {
     let content: Uint8Array;
+    let fileName: string;
+
     try {
+      // An embedded message comes back as a complete .msg of its own, but
+      // under a name the reader synthesised, so prefer the stored ones.
       content = reader.getAttachment(attachment).content;
+      fileName =
+        attachment.fileName ??
+        attachment.fileNameShort ??
+        attachment.name ??
+        (attachment.innerMsgContent
+          ? `${attachment.innerMsgContentFields?.subject ?? `message-${index + 1}`}.msg`
+          : `attachment-${index + 1}`);
     } catch {
-      return;
+      // A malformed embedded message has no bytes to show or save, so it is
+      // dropped rather than listed as an attachment that cannot be opened.
+      continue;
     }
 
-    const fileName =
-      attachment.fileName ??
-      attachment.fileNameShort ??
-      attachment.name ??
-      `attachment-${index + 1}`;
+    const mimeType = mimeTypeFor(fileName, attachment.attachMimeTag);
+    const nestable =
+      attachment.innerMsgContent === true ||
+      looksLikeMessageAttachment(fileName, mimeType);
 
     attachments.push({
       id: `${index}-${fileName}`,
       fileName,
       size: attachment.contentLength ?? content.length,
-      mimeType: mimeTypeFor(fileName, attachment.attachMimeTag),
+      mimeType,
       contentId: normaliseContentId(attachment.pidContentId),
       hidden: attachment.attachmentHidden === true,
       bytes: content,
+      message: nestable
+        ? ((await context.parseNested?.(content, context.depth + 1)) ?? null)
+        : null,
     });
-  });
+  }
 
   const bodyHtml = fields.bodyHtml?.trim();
   const bodyText = fields.body?.trim();

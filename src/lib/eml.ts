@@ -2,17 +2,19 @@ import PostalMime, { type Address, type Email } from "postal-mime";
 
 import {
   MailParseError,
+  looksLikeMessageAttachment,
   mimeTypeFor,
   normaliseContentId,
   toDate,
   type MailFormat,
+  type ParseContext,
   type ParsedAttachment,
   type ParsedMessage,
   type Party,
 } from "@/lib/mail";
 
 /** A header address can be a group, which has to be flattened into mailboxes. */
-function toParties(addresses: Address[] | undefined): Party[] {
+export function toParties(addresses: Address[] | undefined): Party[] {
   if (!addresses) return [];
 
   return addresses.flatMap((address) => {
@@ -36,11 +38,17 @@ function headerBlock(email: Email): string {
 export async function parseEml(
   buffer: ArrayBuffer,
   format: MailFormat = "eml",
+  context: ParseContext = { depth: 0 },
 ): Promise<ParsedMessage> {
   let email: Email;
 
   try {
-    email = await PostalMime.parse(buffer, { attachmentEncoding: "arraybuffer" });
+    email = await PostalMime.parse(buffer, {
+      attachmentEncoding: "arraybuffer",
+      // Surface a forwarded message as an attachment rather than folding it
+      // into the parent body, so it can be opened as a message.
+      forceRfc822Attachments: true,
+    });
   } catch (cause) {
     throw new MailParseError("This file could not be read as a MIME message.", {
       cause,
@@ -64,24 +72,28 @@ export async function parseEml(
     );
   }
 
-  const attachments: ParsedAttachment[] = email.attachments.map(
-    (attachment, index): ParsedAttachment => {
-      const bytes = toContent(attachment.content);
-      const fileName = attachment.filename?.trim() ?? `attachment-${index + 1}`;
+  const attachments: ParsedAttachment[] = [];
 
-      return {
-        id: `${index}-${fileName}`,
-        fileName,
-        size: bytes.byteLength,
-        mimeType: mimeTypeFor(fileName, attachment.mimeType),
-        contentId: normaliseContentId(attachment.contentId),
-        // `related` marks a part the body pulls in rather than one the sender
-        // attached, so it does not belong in the attachment list on its own.
-        hidden: attachment.disposition === "inline" && attachment.related === true,
-        bytes,
-      };
-    },
-  );
+  for (const [index, attachment] of email.attachments.entries()) {
+    const bytes = toContent(attachment.content);
+    const fileName = attachment.filename?.trim() ?? `attachment-${index + 1}`;
+    const mimeType = mimeTypeFor(fileName, attachment.mimeType);
+
+    attachments.push({
+      id: `${index}-${fileName}`,
+      fileName,
+      size: bytes.byteLength,
+      mimeType,
+      contentId: normaliseContentId(attachment.contentId),
+      // `related` marks a part the body pulls in rather than one the sender
+      // attached, so it does not belong in the attachment list on its own.
+      hidden: attachment.disposition === "inline" && attachment.related === true,
+      bytes,
+      message: looksLikeMessageAttachment(fileName, mimeType)
+        ? ((await context.parseNested?.(bytes, context.depth + 1)) ?? null)
+        : null,
+    });
+  }
 
   const html = email.html?.trim();
   const text = email.text?.trim();
@@ -125,12 +137,15 @@ export function unwrapEmlx(buffer: ArrayBuffer): ArrayBuffer | null {
 }
 
 /** Parse an Apple Mail .emlx file. */
-export async function parseEmlx(buffer: ArrayBuffer): Promise<ParsedMessage> {
+export async function parseEmlx(
+  buffer: ArrayBuffer,
+  context: ParseContext = { depth: 0 },
+): Promise<ParsedMessage> {
   const inner = unwrapEmlx(buffer);
 
   if (!inner) {
     throw new MailParseError("This file is not a readable Apple Mail message.");
   }
 
-  return parseEml(inner, "emlx");
+  return parseEml(inner, "emlx", context);
 }
