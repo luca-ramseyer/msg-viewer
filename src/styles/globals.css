@@ -2,68 +2,174 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Brand tokens — Luca Ramseyer Brand Guidelines v1.0
+ * https://luca-ramseyer.github.io/brand/style-guide.html
+ */
 @layer base {
   :root {
-    --background: 20, 6%, 90%;
-    --foreground: 20 14.3% 4.1%;
-    --card: 0 0% 100%;
-    --card-foreground: 20 14.3% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 14.3% 4.1%;
-    --primary: 24 9.8% 10%;
-    --primary-foreground: 60 9.1% 97.8%;
-    --secondary: 60 4.8% 95.9%;
-    --secondary-foreground: 24 9.8% 10%;
-    --muted: 60 4.8% 95.9%;
-    --muted-foreground: 25 5.3% 44.7%;
-    --accent: 60 4.8% 95.9%;
-    --accent-foreground: 24 9.8% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 60 9.1% 97.8%;
-    --border: 20 5.9% 90%;
-    --input: 20 5.9% 90%;
-    --ring: 20 14.3% 4.1%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --paper: #f4efe4;
+    --surface: #fbf8f1;
+    --ink: #211f1c;
+    --body: #423d37;
+    --muted: #857e72;
+    --red: #c0473a;
+    --red-deep: #a63b30;
+    --line: #dad2c4;
+
+    --tracking-wordmark: 0.24em;
+    --tracking-label: 0.14em;
+    --tracking-eyebrow: 0.22em;
+
+    --radius: 3px;
+    --motion-fast: 200ms;
+    --maxw: 920px;
   }
 
-  .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 60 9.1% 97.8%;
-    --card: 20 14.3% 4.1%;
-    --card-foreground: 60 9.1% 97.8%;
-    --popover: 20 14.3% 4.1%;
-    --popover-foreground: 60 9.1% 97.8%;
-    --primary: 60 9.1% 97.8%;
-    --primary-foreground: 24 9.8% 10%;
-    --secondary: 12 6.5% 15.1%;
-    --secondary-foreground: 60 9.1% 97.8%;
-    --muted: 12 6.5% 15.1%;
-    --muted-foreground: 24 5.4% 63.9%;
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 60 9.1% 97.8%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 60 9.1% 97.8%;
-    --border: 12 6.5% 15.1%;
-    --input: 12 6.5% 15.1%;
-    --ring: 24 5.7% 82.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+  * {
+    @apply border-line;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper text-graphite;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif font-medium text-ink;
+  }
+
+  ::selection {
+    background: var(--red);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--ink);
+    outline-offset: 2px;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
+@layer components {
+  /* Wide tracking eats the trailing space; the indent re-centres the word. */
+  .wordmark {
+    @apply font-serif font-medium text-ink;
+    letter-spacing: var(--tracking-wordmark);
+    text-indent: var(--tracking-wordmark);
   }
-  body {
-    @apply bg-background text-foreground;
+
+  .eyebrow {
+    @apply font-sans text-eyebrow font-medium uppercase text-stone;
+  }
+
+  .hairline {
+    @apply h-px w-full bg-line;
+  }
+
+  /*
+   * Rendered message body. Sender HTML is sanitised before it lands here, but
+   * it still arrives with arbitrary styling, so scope it and give it a floor.
+   */
+  .msg-body {
+    @apply text-body text-graphite;
+    word-break: break-word;
+  }
+  /* Brand measure: long lines are the fastest way to make a mail unreadable. */
+  .msg-body p,
+  .msg-body li,
+  .msg-body blockquote {
+    max-width: 72ch;
+  }
+  .msg-body p {
+    margin: 0 0 16px;
+  }
+  .msg-body a {
+    @apply text-ink underline decoration-line underline-offset-4 transition-colors;
+  }
+  .msg-body a:hover {
+    @apply text-red decoration-red;
+  }
+  /* Sanitising can strip a href. What is left is text, so stop it looking clickable. */
+  .msg-body a:not([href]) {
+    @apply text-graphite no-underline;
+  }
+  .msg-body h1,
+  .msg-body h2,
+  .msg-body h3,
+  .msg-body h4 {
+    @apply font-serif font-medium text-ink;
+    margin: 24px 0 8px;
+    line-height: 1.2;
+  }
+  .msg-body h1 {
+    font-size: 30px;
+  }
+  .msg-body h2 {
+    font-size: 24px;
+  }
+  .msg-body h3,
+  .msg-body h4 {
+    font-size: 21px;
+  }
+  .msg-body ul,
+  .msg-body ol {
+    margin: 0 0 16px;
+    padding-left: 24px;
+  }
+  .msg-body ul {
+    list-style: disc;
+  }
+  .msg-body ol {
+    list-style: decimal;
+  }
+  .msg-body li {
+    margin-bottom: 4px;
+  }
+  .msg-body blockquote {
+    @apply border-l border-line text-stone;
+    margin: 0 0 16px;
+    padding-left: 16px;
+  }
+  .msg-body hr {
+    @apply border-0 border-t border-line;
+    margin: 24px 0;
+  }
+  .msg-body img {
+    max-width: 100%;
+    height: auto;
+  }
+  .msg-body table {
+    max-width: 100%;
+    border-collapse: collapse;
+  }
+  .msg-body td,
+  .msg-body th {
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .msg-body pre {
+    @apply border border-line bg-paper;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .msg-body code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9em;
+  }
+  /* Tables are the one thing sender HTML reliably overflows with. */
+  .msg-body-scroll {
+    overflow-x: auto;
   }
 }

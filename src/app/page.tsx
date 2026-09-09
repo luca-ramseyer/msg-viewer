@@ -1,101 +1,122 @@
-"use client"
+"use client";
 
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+
+import Dropzone from "@/components/msg/dropzone";
+import MessageView from "@/components/msg/message-view";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import MsgReader from "@kenjiuno/msgreader";
-import { useState } from "react";
+import { MsgParseError, parseMsg, type ParsedMessage } from "@/lib/msg";
 
-interface Message {
-  subject: string;
-  senderName: string;
-  senderEmail: string;
-  recipients: Recipient[];
-  body: string;
-  attachments: Attachment[];
-}
-
-interface Recipient {
-  name: string;
-  email: string;
-}
-
-interface Attachment {
-  dataId: number;
-  contentLength: number;
+interface Loaded {
   fileName: string;
-  fileNameShort: string;
-} 
+  message: ParsedMessage;
+}
+
+const readAsArrayBuffer = (file: File) =>
+  new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("The file could not be read."));
+    reader.onload = () => {
+      const result = reader.result;
+      if (result instanceof ArrayBuffer) resolve(result);
+      else reject(new Error("The file could not be read."));
+    };
+    reader.readAsArrayBuffer(file);
+  });
 
 export default function HomePage() {
-  const [msgData, setMsgData] = useState<Message | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [isReading, setIsReading] = useState(false);
 
-  const getInitials = (name: string) => {
-    const nameParts = name.trim().split(' ');
-    const firstName = nameParts[0];
-    const lastName = nameParts[nameParts.length - 1];
-    return (firstName!.charAt(0) + lastName!.charAt(0)).toUpperCase();
-  };
-
-  const handleSubmit = (e : React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arrayBuffer = e.target?.result;
-        if(arrayBuffer instanceof ArrayBuffer) {
-          const msgReader = new MsgReader(arrayBuffer);
-          const tempMsgData = msgReader.getFileData();
-          console.log(tempMsgData);
-
-          setMsgData({
-            subject: tempMsgData.subject,
-            senderName: tempMsgData.senderName,
-            senderEmail: tempMsgData.senderSmtpAddress,
-            recipients: tempMsgData.recipients,
-            body: tempMsgData.body!.replace(/(\r\n|\n|\r){2,}/g, '\n').replace(/\r\n|\n|\r/g, '<br />'),
-            attachments: tempMsgData.attachments,
-          } as Message)
-        }
-      }
-      reader.readAsArrayBuffer(file);
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".msg")) {
+      toast.error("That is not a .msg file", {
+        description: "Outlook saves messages as .msg. Pick one of those.",
+      });
+      return;
     }
-  }
 
-  const handleFileUpload = (event : React.ChangeEvent<HTMLInputElement>) => {
-    setFile(event.target.files![0]!)
-  }
+    setIsReading(true);
+    try {
+      const buffer = await readAsArrayBuffer(file);
+      const message = parseMsg(buffer);
+      setLoaded({ fileName: file.name, message });
+    } catch (error) {
+      const description =
+        error instanceof MsgParseError || error instanceof Error
+          ? error.message
+          : "The file could not be read.";
+      toast.error("Could not open this message", { description });
+    } finally {
+      setIsReading(false);
+    }
+  }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground gap-12 py-36">
-      <Card className="max-w-full mx-32 flex flex-col items-center justify-center gap-4 p-6 pt-10">
-        <h1 className="text-4xl">.msg file reader</h1>
-        <form onSubmit={handleSubmit} className="w-96 flex flex-col items-center justify-center gap-4">
-          <Input className="border-border bg-card" type="file" accept=".msg" onChange={handleFileUpload} />
-          <Button className="w-full" type="submit">Submit</Button>
-        </form>
-        <CardDescription>
-          This Website is fully local. No data is sent to any server.
-        </CardDescription>
-      </Card>
-        {
-          msgData && (
-            <Card className="max-w-full mx-32 p-12 flex flex-col gap-4">
-              <h1 className="text-2xl">{msgData.subject}</h1>
-              <div className="flex flex-row gap-4">
-                <div className="flex flex-col items-center justify-center p-2 rounded-full bg-primary h-12 w-12 text-primary-foreground">
-                  <h2 className="text-xl">{getInitials(msgData.senderName)}</h2>
+    <main className="mx-auto w-full max-w-column flex-1 px-s4 pb-s7 pt-s6">
+      {loaded ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-s2 pb-s5">
+            <p className="eyebrow truncate">{loaded.fileName}</p>
+            <Button variant="ghost" size="sm" onClick={() => setLoaded(null)}>
+              Open another file
+            </Button>
+          </div>
+          <MessageView message={loaded.message} />
+        </>
+      ) : (
+        <>
+          <section className="animate-rise pb-s6 opacity-0">
+            <p className="eyebrow">
+              <span className="pr-[0.5em] text-red">01</span>Local tool
+            </p>
+            <h1 className="mt-s2 font-serif text-[34px] leading-tight text-ink sm:text-h1">
+              Read an Outlook <span className="text-red">.msg</span> file in your
+              browser.
+            </h1>
+            <p className="mt-s3 max-w-[64ch] text-[18px]">
+              Open a saved Outlook message without Outlook. Drop the file in and
+              you get the subject, the people on it, the body and the
+              attachments. Parsing happens in this tab, so nothing is uploaded.
+            </p>
+          </section>
+
+          <Dropzone onFile={handleFile} disabled={isReading} />
+
+          <section className="mt-s6 border-t border-line pt-s5">
+            <p className="eyebrow">
+              <span className="pr-[0.5em] text-red">02</span>What this does
+            </p>
+            <div className="mt-s3 grid gap-s3 sm:grid-cols-3">
+              {[
+                {
+                  title: "Stays on your machine",
+                  copy: "The file is parsed by JavaScript in this tab. No server sees it, and there is nothing to delete afterwards.",
+                },
+                {
+                  title: "Blocks remote images",
+                  copy: "Images hosted elsewhere are held back until you ask for them, so opening a message sends no request to the sender.",
+                },
+                {
+                  title: "Saves attachments",
+                  copy: "Every attachment is listed with its size and can be written straight to disk from the message view.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-md border border-line bg-surface p-s3"
+                >
+                  <h2 className="font-serif text-h3 font-semibold text-ink">
+                    {item.title}
+                  </h2>
+                  <p className="mt-s1 text-small text-stone">{item.copy}</p>
                 </div>
-                <div>
-                  <h2 className="text-xl">{msgData.senderName} {msgData.senderEmail}</h2>
-                  <p className="text-sm">To {msgData.recipients.map((recipient) => recipient.name).join(", ")}</p>
-                </div>
-              </div>
-              <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: msgData.body }} />
-            </Card>
-          )
-        }
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </main>
   );
 }
