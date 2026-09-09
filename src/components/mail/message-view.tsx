@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, ImageOff, Paperclip } from "lucide-react";
+import { ChevronDown, Download, ImageOff, Paperclip } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  FORMAT_LABELS,
   displayName,
   formatBytes,
   formatDate,
@@ -13,34 +14,38 @@ import {
   type ParsedAttachment,
   type ParsedMessage,
   type Party,
-} from "@/lib/msg";
+} from "@/lib/mail";
 
 interface MessageViewProps {
   message: ParsedMessage;
 }
 
-const PartyList = ({ label, parties }: { label: string; parties: Party[] }) => {
+const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-1 sm:flex-row sm:gap-s2">
+    <dt className="eyebrow shrink-0 pt-[3px] sm:w-[88px]">{label}</dt>
+    <dd className="text-small text-graphite">{children}</dd>
+  </div>
+);
+
+const PartyRow = ({ label, parties }: { label: string; parties: Party[] }) => {
   if (parties.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:gap-s2">
-      <dt className="eyebrow shrink-0 pt-[3px] sm:w-[64px]">{label}</dt>
-      <dd className="text-small text-graphite">
-        {parties.map((party, index) => (
-          <span key={`${party.email}-${index}`}>
-            {index > 0 && <span className="text-stone">, </span>}
-            {party.name ? (
-              <>
-                {party.name}
-                {party.email && <span className="text-stone"> · {party.email}</span>}
-              </>
-            ) : (
-              party.email
-            )}
-          </span>
-        ))}
-      </dd>
-    </div>
+    <Row label={label}>
+      {parties.map((party, index) => (
+        <span key={`${party.email}-${index}`}>
+          {index > 0 && <span className="text-stone">, </span>}
+          {party.name ? (
+            <>
+              {party.name}
+              {party.email && <span className="text-stone"> · {party.email}</span>}
+            </>
+          ) : (
+            party.email
+          )}
+        </span>
+      ))}
+    </Row>
   );
 };
 
@@ -76,8 +81,9 @@ const AttachmentRow = ({ attachment }: { attachment: ParsedAttachment }) => {
 
 const MessageView = ({ message }: MessageViewProps) => {
   const [allowRemoteImages, setAllowRemoteImages] = useState(false);
+  const [showHeaders, setShowHeaders] = useState(false);
 
-  // Inline images live inside the .msg itself, so resolving them stays local.
+  // Inline images live inside the file itself, so resolving them stays local.
   const inlineImages = useMemo(() => {
     const map: Record<string, string> = {};
     for (const attachment of message.attachments) {
@@ -133,15 +139,12 @@ const MessageView = ({ message }: MessageViewProps) => {
         </div>
 
         <dl className="mt-s3 flex flex-col gap-s1">
-          <PartyList label="To" parties={message.to} />
-          <PartyList label="Cc" parties={message.cc} />
-          <PartyList label="Bcc" parties={message.bcc} />
-          {message.sentAt && (
-            <div className="flex flex-col gap-1 sm:flex-row sm:gap-s2">
-              <dt className="eyebrow shrink-0 pt-[3px] sm:w-[64px]">Sent</dt>
-              <dd className="text-small text-graphite">{formatDate(message.sentAt)}</dd>
-            </div>
-          )}
+          <PartyRow label="To" parties={message.to} />
+          <PartyRow label="Cc" parties={message.cc} />
+          <PartyRow label="Bcc" parties={message.bcc} />
+          <PartyRow label="Reply to" parties={message.replyTo} />
+          {message.sentAt && <Row label="Sent">{formatDate(message.sentAt)}</Row>}
+          <Row label="Format">{FORMAT_LABELS[message.format]}</Row>
         </dl>
       </header>
 
@@ -176,6 +179,30 @@ const MessageView = ({ message }: MessageViewProps) => {
               <AttachmentRow key={attachment.id} attachment={attachment} />
             ))}
           </ul>
+        </section>
+      )}
+
+      {message.headers && (
+        <section className="mt-s5 border-t border-line pt-s4">
+          <button
+            type="button"
+            aria-expanded={showHeaders}
+            onClick={() => setShowHeaders((shown) => !shown)}
+            className="eyebrow flex items-center gap-s1 transition-colors duration-200 hover:text-red"
+          >
+            <ChevronDown
+              aria-hidden
+              className={`h-[13px] w-[13px] text-red transition-transform duration-200 ${
+                showHeaders ? "rotate-180" : ""
+              }`}
+            />
+            Message headers
+          </button>
+          {showHeaders && (
+            <pre className="mt-s2 overflow-x-auto rounded-md border border-line bg-surface p-s2 font-mono text-[12px] leading-relaxed text-graphite">
+              {message.headers}
+            </pre>
+          )}
         </section>
       )}
     </article>

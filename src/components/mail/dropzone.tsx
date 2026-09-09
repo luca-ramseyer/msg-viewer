@@ -45,9 +45,10 @@ const Dropzone = ({ onFile, disabled = false }: DropzoneProps) => {
         disabled ? "cursor-wait opacity-60" : "cursor-pointer hover:border-ink",
       )}
     >
-      <p className="eyebrow">Outlook message</p>
+      <p className="eyebrow">Mail file</p>
       <p className="mt-s2 font-serif text-h2 text-ink">
-        Drop a <span className="text-red">.msg</span> file here
+        Drop a <span className="text-red">.msg</span> or{" "}
+        <span className="text-red">.eml</span> file here
       </p>
       <p className="mt-s2 max-w-[46ch] text-small text-stone">
         The file is read in this browser tab and never leaves your computer.
@@ -69,7 +70,7 @@ const Dropzone = ({ onFile, disabled = false }: DropzoneProps) => {
       <input
         ref={inputRef}
         type="file"
-        accept=".msg,application/vnd.ms-outlook"
+        accept=".msg,.eml,.emlx,application/vnd.ms-outlook,message/rfc822"
         className="sr-only"
         tabIndex={-1}
         disabled={disabled}

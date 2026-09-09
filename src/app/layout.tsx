@@ -25,9 +25,9 @@ const sans = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "msg reader · Luca Ramseyer",
+  title: "Mail preview · Luca Ramseyer",
   description:
-    "Open an Outlook .msg file in your browser. The file is parsed in the tab and never uploaded.",
+    "Open an Outlook .msg or a MIME .eml file in your browser. The file is parsed in the tab and never uploaded.",
 };
 
 export const viewport: Viewport = {

@@ -3,51 +3,32 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import Dropzone from "@/components/msg/dropzone";
-import MessageView from "@/components/msg/message-view";
+import Dropzone from "@/components/mail/dropzone";
+import MessageView from "@/components/mail/message-view";
 import { Button } from "@/components/ui/button";
-import { MsgParseError, parseMsg, type ParsedMessage } from "@/lib/msg";
+import { MailParseError, type ParsedMessage } from "@/lib/mail";
+import { openMail } from "@/lib/open-mail";
 
 interface Loaded {
   fileName: string;
   message: ParsedMessage;
 }
 
-const readAsArrayBuffer = (file: File) =>
-  new Promise<ArrayBuffer>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("The file could not be read."));
-    reader.onload = () => {
-      const result = reader.result;
-      if (result instanceof ArrayBuffer) resolve(result);
-      else reject(new Error("The file could not be read."));
-    };
-    reader.readAsArrayBuffer(file);
-  });
-
 export default function HomePage() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [isReading, setIsReading] = useState(false);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".msg")) {
-      toast.error("That is not a .msg file", {
-        description: "Outlook saves messages as .msg. Pick one of those.",
-      });
-      return;
-    }
-
     setIsReading(true);
     try {
-      const buffer = await readAsArrayBuffer(file);
-      const message = parseMsg(buffer);
+      const message = await openMail(file);
       setLoaded({ fileName: file.name, message });
     } catch (error) {
       const description =
-        error instanceof MsgParseError || error instanceof Error
+        error instanceof MailParseError || error instanceof Error
           ? error.message
           : "The file could not be read.";
-      toast.error("Could not open this message", { description });
+      toast.error("Could not open this file", { description });
     } finally {
       setIsReading(false);
     }
@@ -72,13 +53,14 @@ export default function HomePage() {
               <span className="pr-[0.5em] text-red">01</span>Local tool
             </p>
             <h1 className="mt-s2 font-serif text-[34px] leading-tight text-ink sm:text-h1">
-              Read an Outlook <span className="text-red">.msg</span> file in your
-              browser.
+              Preview a saved mail in your browser.
             </h1>
             <p className="mt-s3 max-w-[64ch] text-[18px]">
-              Open a saved Outlook message without Outlook. Drop the file in and
-              you get the subject, the people on it, the body and the
-              attachments. Parsing happens in this tab, so nothing is uploaded.
+              Open an Outlook <span className="text-red">.msg</span> or a MIME{" "}
+              <span className="text-red">.eml</span> without a mail client. Drop
+              the file in and you get the subject, the people on it, the headers,
+              the body and the attachments. Parsing happens in this tab, so
+              nothing is uploaded.
             </p>
           </section>
 
@@ -99,8 +81,8 @@ export default function HomePage() {
                   copy: "Images hosted elsewhere are held back until you ask for them, so opening a message sends no request to the sender.",
                 },
                 {
-                  title: "Saves attachments",
-                  copy: "Every attachment is listed with its size and can be written straight to disk from the message view.",
+                  title: "Shows the headers",
+                  copy: "The full transport headers are one click away, alongside the attachments, which save straight to disk.",
                 },
               ].map((item) => (
                 <div
